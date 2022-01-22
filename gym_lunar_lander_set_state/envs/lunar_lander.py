@@ -20,13 +20,16 @@ class MyLunarLander(LunarLander):
         # legs
         i = -1  # -1 is for the left, 1 is for the right leg
         for leg in self.legs:
-            init_leg_pos = np.array([i * LEG_AWAY / SCALE, 0])
+            init_leg_pos = np.array([-i * LEG_AWAY / SCALE, 0])
             leg_ang = state[4]
             rot_matrix = np.array([[np.cos(leg_ang), -np.sin(leg_ang)],
                                    [np.sin(leg_ang), np.cos(leg_ang)]])
             leg_pos = np.matmul(rot_matrix, init_leg_pos) + np.array([x, y])
 
             leg.position = b2Vec2(leg_pos[0], leg_pos[1])
+            leg.angle = leg_ang + 0.05 * -i
+            leg.linearVelocity = b2Vec2(state[2], state[3])
+            leg.angularVelocity = state[5] * FPS / 20.0
             i+=2
 
         # lander
@@ -39,7 +42,7 @@ class MyLunarLander(LunarLander):
         self.lander.angularVelocity = state[5] * FPS / 20.0
 
         # evaluate leg states
-        self.world.Step(0,0,0)
+        self.world.Step(1 / FPS,1,1)
 
         return self.get_state()
 

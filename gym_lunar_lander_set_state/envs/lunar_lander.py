@@ -252,7 +252,6 @@ class LunarLander(gym.Env, EzPickle):
         self.lander.linearVelocity = linear_velocity
         self.lander.angularVelocity = angular_velocity
         self.lander.ApplyForceToCenter(center_force, True)
-        # self.world.Step(0.001 / FPS, 6 * 30, 6 * 30)
 
     def _create_particle(self, mass, x, y, ttl):
         p = self.world.CreateDynamicBody(

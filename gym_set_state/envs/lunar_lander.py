@@ -43,6 +43,7 @@ class MyLunarLander(LunarLander):
 
         # evaluate leg states
         self.world.Step(1 / FPS,1,1)
+        # self.world.Step(0,0,0)
 
         return self.get_state()
 

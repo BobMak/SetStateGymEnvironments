@@ -30,7 +30,7 @@ def get_random_state():
 print("position set state")
 time.sleep(0.3)
 for x in range(50):
-    print(env.set_state(env.observation_space.sample()))
+    print(env.set_state(get_random_state()))
     env.render()
     time.sleep(0.5)
     for x in range(30):

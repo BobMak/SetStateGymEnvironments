@@ -33,8 +33,22 @@ register(
 
 register(
     id="BipedalWalkerHardcoreSetState-v0",
-    entry_point="gym.envs.box2d:BipedalWalker",
+    entry_point="gym_set_state.envs:MyBipedalWalker",
     kwargs={"hardcore": True},
     max_episode_steps=2000,
     reward_threshold=300,
+)
+
+register(
+    id="ReacherSetState-v2",
+    entry_point="gym_set_state.envs:MyReacherEnv",
+    max_episode_steps=50,
+    reward_threshold=-3.75,
+)
+
+register(
+    id="HopperSetState-v2",
+    entry_point="gym_set_state.envs:MyHopperEnv",
+    max_episode_steps=1000,
+    reward_threshold=3800.0,
 )

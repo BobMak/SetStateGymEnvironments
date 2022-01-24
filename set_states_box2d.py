@@ -1,16 +1,13 @@
-import random
 import time
-
 import gym
-import numpy as np
 
 import gym_set_state
 from gym_set_state.envs import MyLunarLander, MyBipedalWalker
 
 
 print(gym.__version__)
-env_name = 'BipedalWalkerSetState-v0'
-# env_name = 'LunarLanderSetState-v0'
+env_name = 'LunarLanderSetState-v0'
+# env_name = 'BipedalWalkerSetState-v0'
 
 if env_name == 'LunarLanderSetState-v0' or env_name == 'LunarLanderContinuousSetState-v0':
     MyEnv = MyLunarLander
@@ -19,12 +16,6 @@ elif env_name == 'BipedalWalkerSetState-v0' or env_name == 'BipedalWalkerHardcor
 
 env = gym.make(env_name)
 env.reset()
-
-
-def get_random_state():
-    r = MyEnv.lo_clip, MyEnv.hi_clip
-    vec = np.random.uniform(low=r[0], high=r[1], size=env.observation_space.shape)
-    return vec
 
 
 print("position set state")

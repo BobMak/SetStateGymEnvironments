@@ -110,14 +110,9 @@ class MyBipedalWalker(BipedalWalker):
             np.cos(self.joints[3].bodyB.angle-np.pi/2),
             np.sin(self.joints[3].bodyB.angle-np.pi/2)])
 
-        self.world.Step(0,0,0)
+        self.world.Step(1.0 / (FPS*100), 6 * 30, 2 * 30)
 
-        return self.get_state()
-
-    def get_state(self):
         pos = self.hull.position
-        vel = self.hull.linearVelocity
-
         for i in range(10):
             self.lidar[i].fraction = 1.0
             self.lidar[i].p1 = pos
@@ -126,6 +121,11 @@ class MyBipedalWalker(BipedalWalker):
                 pos[1] - math.cos(1.5 * i / 10.0) * LIDAR_RANGE,
             )
             self.world.RayCast(self.lidar[i], self.lidar[i].p1, self.lidar[i].p2)
+
+        return self.get_state()
+
+    def get_state(self):
+        vel = self.hull.linearVelocity
 
         state = [
             self.hull.angle,  # Normal angles up to 0.5 here, but sure more is possible.

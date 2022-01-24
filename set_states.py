@@ -17,7 +17,7 @@ if env_name == 'LunarLanderSetState-v0' or env_name == 'LunarLanderContinuousSet
 elif env_name == 'BipedalWalkerSetState-v0' or env_name == 'BipedalWalkerHardcoreSetState-v0':
     MyEnv = MyBipedalWalker
 
-env = gym.make('BipedalWalkerSetState-v0')
+env = gym.make(env_name)
 env.reset()
 
 
@@ -30,9 +30,17 @@ def get_random_state():
 print("position set state")
 time.sleep(0.3)
 for x in range(50):
-    print(env.set_state(env.observation_space.sample()))
+    set_to = env.observation_space.sample()
+    res_before_sim = env.set_state(set_to)[:13] - set_to[:13]
+    res_before_sim[8] = 0
+    print("state differs:", res_before_sim)
     env.render()
-    time.sleep(0.5)
+    time.sleep(1.5)
+    env.world.Step(1 / 6000,180,60)
+    res_after_sim = env.get_state()[:13] - set_to[:13]
+    print("state differs after sim adjustment:", res_after_sim)
+    env.render()
+    time.sleep(1.5)
     for x in range(30):
         env.render()
         env.step(env.action_space.sample()) # take a random action

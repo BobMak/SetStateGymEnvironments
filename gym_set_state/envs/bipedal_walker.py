@@ -23,6 +23,8 @@ class MyBipedalWalker(BipedalWalker):
     hi_clip = np.array([ np.pi / 2,  1.0,  1.0,  1.0,  np.pi / 2,  1.0,  np.pi / 2, 1.0,  1.0,  np.pi / 2, 1.0,  np.pi / 2,  1.0, 1.0, ]
                        + [1.0] * 10)
 
+    knee_pos = (0,0)
+
     def set_state(self, state):
         """
         :param state: np.array([
@@ -43,10 +45,12 @@ class MyBipedalWalker(BipedalWalker):
         ]])
         :return: updated state
         """
-        state = np.clip(state, self.lo_clip, self.hi_clip).astype(np.float32)
+        # state = np.clip(state, self.lo_clip, self.hi_clip).astype(np.float32)
         init_x = TERRAIN_STEP * TERRAIN_STARTPAD / 2
         init_y = TERRAIN_HEIGHT + 2 * LEG_H
+        self.scroll = 0.0
 
+        # legs
         # hull
         self.hull.position = b2Vec2(init_x, init_y)
         self.hull.angle = state[0].item()  # Normal angles up to 0.5 here, but sure more is possible.
@@ -54,80 +58,59 @@ class MyBipedalWalker(BipedalWalker):
         self.hull.linearVelocity.x = state[2] / 0.3 / (VIEWPORT_W / SCALE) * FPS  # Normalized to get -1..1 range
         self.hull.linearVelocity.y = state[3] / 0.3 / (VIEWPORT_H / SCALE) * FPS  # Normalized to get -1..1 range
 
-        # legs
-        for leg in self.legs:
-            self.world.DestroyBody(leg)
-        self.legs = []
-        self.joints = []
-        for i in [-1, +1]:
-            hip_speed = state[5] if i == -1 else state[10]
-            hip_angle = state[4] if i == -1 else state[11]
-            knee_speed = state[7] if i == -1 else state[12]
-            knee_angle = state[6] if i == -1 else state[13]
+        # hip 1 angle and velocity
+        target_ang = state[4]
+        self.joints[0].bodyB.angle = target_ang - 0.05 + self.joints[0].bodyA.angle
+        self.joints[0].bodyB.angularVelocity = state[5] * SPEED_HIP \
+                                               + self.joints[0].bodyA.angularVelocity
 
-            leg = self.world.CreateDynamicBody(
-                position=(init_x, init_y - LEG_H / 2 - LEG_DOWN),
-                angle=(i * 0.05),
-                fixtures=LEG_FD,
-            )
-            leg.color1 = (0.6 - i / 10.0, 0.3 - i / 10.0, 0.5 - i / 10.0)
-            leg.color2 = (0.4 - i / 10.0, 0.2 - i / 10.0, 0.3 - i / 10.0)
-            rjd = revoluteJointDef(
-                bodyA=self.hull,
-                bodyB=leg,
-                localAnchorA=(0, LEG_DOWN),
-                localAnchorB=(0, LEG_H / 2),
-                enableMotor=True,
-                enableLimit=True,
-                maxMotorTorque=MOTORS_TORQUE,
-                motorSpeed=i,
-                lowerAngle=-0.8,
-                upperAngle=1.1,
-            )
-            self.legs.append(leg)
-            self.joints.append(self.world.CreateJoint(rjd, speed=hip_speed, angle=hip_angle))
+        # hip 1 position
+        hip_start_pos = self.hull.position - LEG_DOWN * np.array([np.cos(self.hull.angle-np.pi/2), np.sin(self.hull.angle-np.pi/2)])
+        self.joints[0].bodyB.position = hip_start_pos + LEG_H / 2 * np.array([
+            np.cos(self.joints[0].bodyB.angle-np.pi/2),
+            np.sin(self.joints[0].bodyB.angle-np.pi/2)])
 
-            lower = self.world.CreateDynamicBody(
-                position=(init_x, init_y - LEG_H * 3 / 2 - LEG_DOWN),
-                angle=(i * 0.05),
-                fixtures=LOWER_FD,
-            )
-            lower.color1 = (0.6 - i / 10.0, 0.3 - i / 10.0, 0.5 - i / 10.0)
-            lower.color2 = (0.4 - i / 10.0, 0.2 - i / 10.0, 0.3 - i / 10.0)
-            rjd = revoluteJointDef(
-                bodyA=leg,
-                bodyB=lower,
-                localAnchorA=(0, -LEG_H / 2),
-                localAnchorB=(0, LEG_H / 2),
-                enableMotor=True,
-                enableLimit=True,
-                maxMotorTorque=MOTORS_TORQUE,
-                motorSpeed=1,
-                lowerAngle=-1.6,
-                upperAngle=-0.1,
-            )
-            lower.ground_contact = False
-            self.legs.append(lower)
-            self.joints.append(self.world.CreateJoint(rjd, speed=knee_speed, angle=knee_angle))
+        # low 1
+        target_ang = state[6] - 1.0
+        self.joints[1].bodyB.angle = target_ang + self.joints[1].bodyA.angle
+        self.joints[1].bodyB.angularVelocity = state[7] * SPEED_KNEE \
+                                               + self.joints[1].bodyA.angularVelocity
 
-        self.drawlist = self.terrain + self.legs + [self.hull]
+        knee_pos = self.joints[1].bodyA.position + LEG_H / 2 * np.array([
+            np.cos(self.joints[1].bodyA.angle-np.pi/2),
+            np.sin(self.joints[1].bodyA.angle-np.pi/2)])
 
-        # evaluate leg states
-        self.world.Step(1 / FPS,1,1)
+        self.joints[1].bodyB.position = knee_pos + LEG_H / 2 * np.array([
+            np.cos(self.joints[1].bodyB.angle-np.pi/2),
+            np.sin(self.joints[1].bodyB.angle-np.pi/2)])
 
-        # get lidar data
-        class LidarCallback(Box2D.b2.rayCastCallback):
-            def ReportFixture(self, fixture, point, normal, fraction):
-                if (fixture.filterData.categoryBits & 1) == 0:
-                    return -1
-                self.p2 = point
-                self.fraction = fraction
-                return fraction
+        # hip 2 angle and veolcity
+        target_ang = state[9]
+        self.joints[2].bodyB.angle = target_ang + 0.05 + self.joints[2].bodyA.angle
+        self.joints[2].bodyB.angularVelocity = state[10] * SPEED_HIP \
+                                               + self.joints[2].bodyA.angularVelocity
 
-        self.lidar = [LidarCallback() for _ in range(10)]
+        # hip 2 position
+        self.joints[2].bodyB.position = hip_start_pos + LEG_H / 2 * np.array([
+            np.cos(self.joints[2].bodyB.angle-np.pi/2),
+            np.sin(self.joints[2].bodyB.angle-np.pi/2)])
+        # np.matmul(rot_matrix, np.array([LEG_H / 2, 0])) \
 
-        # self.world.Step(0,0,0)
-        assert len(state) == 24
+        # low 2 angle and velocity
+        target_ang = state[11] - 1.0
+        self.joints[3].bodyB.angle = target_ang + self.joints[3].bodyA.angle
+        self.joints[3].bodyB.angularVelocity = state[12] * SPEED_KNEE \
+                                               + self.joints[3].bodyA.angularVelocity
+
+        # low 2 position
+        knee_pos = self.joints[3].bodyA.position + LEG_H / 2 * np.array(
+            [np.cos(self.joints[3].bodyA.angle-np.pi/2),
+             np.sin(self.joints[3].bodyA.angle-np.pi/2)])
+        self.joints[3].bodyB.position = knee_pos + LEG_H / 2 * np.array([
+            np.cos(self.joints[3].bodyB.angle-np.pi/2),
+            np.sin(self.joints[3].bodyB.angle-np.pi/2)])
+
+        self.world.Step(0,0,0)
 
         return self.get_state()
 
@@ -149,9 +132,7 @@ class MyBipedalWalker(BipedalWalker):
             2.0 * self.hull.angularVelocity / FPS,
             0.3 * vel.x * (VIEWPORT_W / SCALE) / FPS,  # Normalized to get -1..1 range
             0.3 * vel.y * (VIEWPORT_H / SCALE) / FPS,
-            self.joints[
-                0
-            ].angle,
+            self.joints[0].angle,
             # This will give 1.1 on high up, but it's still OK (and there should be spikes on hiting the ground, that's normal too)
             self.joints[0].speed / SPEED_HIP,
             self.joints[1].angle + 1.0,
@@ -167,3 +148,5 @@ class MyBipedalWalker(BipedalWalker):
         assert len(state) == 24
 
         return np.array(state, dtype=np.float32)
+
+        # self.viewer.draw_circle(5, 50, position=self.knee_pos, color=(1,0,0))
